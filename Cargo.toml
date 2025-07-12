@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "src/proofparcel_backend"
+]
+resolver = "2"

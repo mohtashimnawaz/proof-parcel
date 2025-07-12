@@ -1,0 +1,27 @@
+{
+  "canisters": {
+    "proofparcel_backend": {
+      "candid": "src/proofparcel_backend/proofparcel_backend.did",
+      "package": "proofparcel_backend",
+      "type": "rust"
+    },
+    "proofparcel_frontend": {
+      "dependencies": [
+        "proofparcel_backend"
+      ],
+      "source": [
+        "src/proofparcel_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "proofparcel_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
