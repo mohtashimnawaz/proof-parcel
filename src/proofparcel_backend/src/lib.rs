@@ -24,6 +24,7 @@ pub struct Delivery {
     pub cancelled_at: Option<u64>,
     pub otp: Option<String>,
     pub otp_expires_at: Option<u64>,
+    pub status_history: Vec<(DeliveryStatus, u64)>,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug, PartialEq)]
@@ -149,6 +150,7 @@ async fn create_delivery(request: CreateDeliveryRequest) -> Result<String, Strin
         cancelled_at: None,
         otp: None,
         otp_expires_at: None,
+        status_history: vec![(DeliveryStatus::Pending, get_current_time())],
     };
     
     // Store delivery
@@ -183,6 +185,7 @@ fn start_delivery(delivery_id: String) -> Result<(), String> {
             
             delivery.status = DeliveryStatus::InTransit;
             delivery.in_transit_at = Some(get_current_time());
+            delivery.status_history.push((DeliveryStatus::InTransit, get_current_time()));
             Ok(())
         } else {
             Err("Delivery not found".to_string())
@@ -212,6 +215,7 @@ async fn generate_delivery_otp(delivery_id: String) -> Result<String, String> {
             delivery.otp_expires_at = Some(expires_at);
             delivery.status = DeliveryStatus::Delivered;
             delivery.delivered_at = Some(get_current_time());
+            delivery.status_history.push((DeliveryStatus::Delivered, get_current_time()));
             ic_cdk::println!("OTP generated for delivery {}: {}", delivery_id, otp);
             result = Ok(otp.clone());
         }
@@ -254,6 +258,7 @@ async fn confirm_delivery(request: ConfirmDeliveryRequest) -> Result<String, Str
             }
             delivery.status = DeliveryStatus::Confirmed;
             delivery.confirmed_at = Some(current_time);
+            delivery.status_history.push((DeliveryStatus::Confirmed, current_time));
             result = Ok(String::new()); // placeholder, will set below
         }
     });
@@ -287,6 +292,7 @@ fn release_escrow(delivery_id: String) -> Result<(), String> {
             // Release escrow
             delivery.status = DeliveryStatus::EscrowReleased;
             delivery.escrow_released_at = Some(current_time);
+            delivery.status_history.push((DeliveryStatus::EscrowReleased, current_time));
             
             // Update escrow balance
             ESCROW_BALANCE.with(|e| {
@@ -457,24 +463,33 @@ mod tests {
             cancelled_at: None,
             otp: None,
             otp_expires_at: None,
+            status_history: vec![(DeliveryStatus::Pending, get_current_time())],
         };
         
         // Test status transitions
         delivery.status = DeliveryStatus::InTransit;
         assert_eq!(delivery.status, DeliveryStatus::InTransit);
         assert_eq!(delivery.in_transit_at, Some(get_current_time()));
+        assert_eq!(delivery.status_history.last().unwrap().0, DeliveryStatus::InTransit);
+        assert_eq!(delivery.status_history.last().unwrap().1, get_current_time());
         
         delivery.status = DeliveryStatus::Delivered;
         assert_eq!(delivery.status, DeliveryStatus::Delivered);
         assert_eq!(delivery.delivered_at, Some(get_current_time()));
+        assert_eq!(delivery.status_history.last().unwrap().0, DeliveryStatus::Delivered);
+        assert_eq!(delivery.status_history.last().unwrap().1, get_current_time());
         
         delivery.status = DeliveryStatus::Confirmed;
         assert_eq!(delivery.status, DeliveryStatus::Confirmed);
         assert_eq!(delivery.confirmed_at, Some(get_current_time()));
+        assert_eq!(delivery.status_history.last().unwrap().0, DeliveryStatus::Confirmed);
+        assert_eq!(delivery.status_history.last().unwrap().1, get_current_time());
         
         delivery.status = DeliveryStatus::EscrowReleased;
         assert_eq!(delivery.status, DeliveryStatus::EscrowReleased);
         assert_eq!(delivery.escrow_released_at, Some(get_current_time()));
+        assert_eq!(delivery.status_history.last().unwrap().0, DeliveryStatus::EscrowReleased);
+        assert_eq!(delivery.status_history.last().unwrap().1, get_current_time());
     }
 }
 

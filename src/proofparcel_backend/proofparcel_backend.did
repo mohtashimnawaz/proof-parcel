@@ -22,6 +22,7 @@ type Delivery = record {
   cancelled_at : opt nat64;
   otp : opt text;
   otp_expires_at : opt nat64;
+  status_history : vec record { status : DeliveryStatus; timestamp : nat64 };
 };
 
 type CreateDeliveryRequest = record {
