@@ -51,6 +51,16 @@
               <span v-if="isDark" class="text-yellow-400">☀️</span>
               <span v-else class="text-gray-800">🌙</span>
             </button>
+            <!-- Plug wallet connect button -->
+            <div class="ml-4">
+              <button v-if="!plugConnected" @click="connectPlug" class="px-3 py-2 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-sm font-medium">
+                Connect Plug
+              </button>
+              <div v-else class="flex items-center space-x-2">
+                <span class="text-xs font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">{{ plugPrincipalShort }}</span>
+                <button @click="disconnectPlug" class="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600">Disconnect</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -76,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const isDark = ref(false)
 
@@ -104,7 +114,48 @@ onMounted(() => {
     isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
   }
   setDarkClass(isDark.value)
+  // Try to auto-connect Plug if already authorized
+  checkPlugConnection()
 })
+
+// Plug wallet integration
+const plugConnected = ref(false)
+const plugPrincipal = ref<string | null>(null)
+const plugPrincipalShort = computed(() => {
+  if (!plugPrincipal.value) return ''
+  return plugPrincipal.value.slice(0, 8) + '...' + plugPrincipal.value.slice(-4)
+})
+
+async function connectPlug() {
+  if (!(window as any).ic?.plug) {
+    alert('Plug wallet extension not found! Please install Plug to connect.')
+    return
+  }
+  try {
+    const connected = await (window as any).ic.plug.requestConnect({ whitelist: [] })
+    if (connected) {
+      const principal = await (window as any).ic.plug.getPrincipal()
+      plugPrincipal.value = principal.toString()
+      plugConnected.value = true
+    }
+  } catch (e) {
+    alert('Failed to connect Plug: ' + (e as any).message)
+  }
+}
+
+function disconnectPlug() {
+  plugConnected.value = false
+  plugPrincipal.value = null
+}
+
+function checkPlugConnection() {
+  if ((window as any).ic?.plug?.agent) {
+    (window as any).ic.plug.getPrincipal().then((principal: any) => {
+      plugPrincipal.value = principal.toString()
+      plugConnected.value = true
+    })
+  }
+}
 </script>
 
 <style scoped>
