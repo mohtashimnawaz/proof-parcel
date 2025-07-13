@@ -39,7 +39,7 @@
                 </button>
               </div>
             </div>
-            <DeliveryTimeline :status="d.status" :createdAt="d.created_at" :confirmedAt="d.confirmed_at" :escrowReleasedAt="d.escrow_released_at" />
+            <DeliveryTimeline :statusHistory="d.status_history" />
           </li>
         </ul>
       </div>
@@ -68,7 +68,7 @@
                 </button>
               </div>
             </div>
-            <DeliveryTimeline :status="d.status" :createdAt="d.created_at" :confirmedAt="d.confirmed_at" :escrowReleasedAt="d.escrow_released_at" />
+            <DeliveryTimeline :statusHistory="d.status_history" />
           </li>
         </ul>
       </div>
