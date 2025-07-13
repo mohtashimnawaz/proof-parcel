@@ -120,6 +120,12 @@ async fn generate_unique_id() -> String {
     rand_bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>()
 }
 
+// Add async fn generate_notification_id() -> String { ... } (copy generate_unique_id)
+async fn generate_notification_id() -> String {
+    let (rand_bytes,) = raw_rand().await.expect("Failed to get randomness");
+    rand_bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+}
+
 // Get current timestamp
 fn get_current_time() -> u64 {
     SystemTime::now()
@@ -178,38 +184,42 @@ async fn create_delivery(request: CreateDeliveryRequest) -> Result<String, Strin
     Ok(delivery_id)
 }
 
-// Start delivery (seller marks as in transit)
+// Refactor start_delivery to be async
 #[update]
-fn start_delivery(delivery_id: String) -> Result<(), String> {
+async fn start_delivery(delivery_id: String) -> Result<(), String> {
     let caller = ic_cdk::caller();
-    
+    let mut notify_buyer = None;
+    let mut result = Err("Delivery not found".to_string());
     DELIVERIES.with(|d| {
         let mut deliveries = d.borrow_mut();
         if let Some(delivery) = deliveries.get_mut(&delivery_id) {
             if delivery.seller != caller {
-                return Err("Only seller can start delivery".to_string());
+                result = Err("Only seller can start delivery".to_string());
+                return;
             }
-            
             if delivery.status != DeliveryStatus::Pending {
-                return Err("Delivery must be in pending status".to_string());
+                result = Err("Delivery must be in pending status".to_string());
+                return;
             }
-            
             delivery.status = DeliveryStatus::InTransit;
             delivery.in_transit_at = Some(get_current_time());
             delivery.status_history.push((DeliveryStatus::InTransit, get_current_time()));
-            add_notification(delivery.buyer, &format!("Your delivery {} is now in transit!", delivery.id), "info");
-            Ok(())
-        } else {
-            Err("Delivery not found".to_string())
+            notify_buyer = Some(delivery.buyer);
+            result = Ok(());
         }
-    })
+    });
+    if let Some(buyer) = notify_buyer {
+        add_notification(buyer, &format!("Your delivery {} is now in transit!", delivery_id), "info").await;
+    }
+    result
 }
 
-// Generate OTP for delivery confirmation
+// Refactor generate_delivery_otp to be async
 #[update]
 async fn generate_delivery_otp(delivery_id: String) -> Result<String, String> {
     let caller = ic_cdk::caller();
     let otp = generate_otp().await;
+    let mut notify_buyer = None;
     let mut result = Err("Delivery not found".to_string());
     DELIVERIES.with(|d| {
         let mut deliveries = d.borrow_mut();
@@ -228,11 +238,14 @@ async fn generate_delivery_otp(delivery_id: String) -> Result<String, String> {
             delivery.status = DeliveryStatus::Delivered;
             delivery.delivered_at = Some(get_current_time());
             delivery.status_history.push((DeliveryStatus::Delivered, get_current_time()));
-            add_notification(delivery.buyer, &format!("Your delivery {} is now delivered! OTP generated.", delivery.id), "info");
+            notify_buyer = Some(delivery.buyer);
             ic_cdk::println!("OTP generated for delivery {}: {}", delivery_id, otp);
             result = Ok(otp.clone());
         }
     });
+    if let Some(buyer) = notify_buyer {
+        add_notification(buyer, &format!("Your delivery {} is now delivered! OTP generated.", delivery_id), "info").await;
+    }
     result
 }
 
@@ -243,6 +256,8 @@ async fn confirm_delivery(request: ConfirmDeliveryRequest) -> Result<String, Str
     let current_time = get_current_time();
     let mut nft_id: Option<String> = None;
     let mut result: Result<String, String> = Err("Delivery not found".to_string());
+    let mut notify_seller = None;
+    let mut notify_buyer = None;
     DELIVERIES.with(|d| {
         let mut deliveries = d.borrow_mut();
         if let Some(delivery) = deliveries.get_mut(&request.delivery_id) {
@@ -272,8 +287,8 @@ async fn confirm_delivery(request: ConfirmDeliveryRequest) -> Result<String, Str
             delivery.status = DeliveryStatus::Confirmed;
             delivery.confirmed_at = Some(current_time);
             delivery.status_history.push((DeliveryStatus::Confirmed, current_time));
-            add_notification(delivery.seller, &format!("Delivery {} has been confirmed by the buyer!", request.delivery_id), "success");
-            add_notification(delivery.buyer, &format!("You have confirmed delivery {}!", request.delivery_id), "success");
+            notify_seller = Some(delivery.seller);
+            notify_buyer = Some(delivery.buyer);
             result = Ok(String::new()); // placeholder, will set below
         }
     });
@@ -284,43 +299,50 @@ async fn confirm_delivery(request: ConfirmDeliveryRequest) -> Result<String, Str
         ic_cdk::println!("Delivery confirmed: {}", request.delivery_id);
         result = Ok(minted_nft_id);
     }
+    if let Some(seller) = notify_seller {
+        add_notification(seller, &format!("Delivery {} has been confirmed by the buyer!", request.delivery_id), "success").await;
+    }
+    if let Some(buyer) = notify_buyer {
+        add_notification(buyer, &format!("You have confirmed delivery {}!", request.delivery_id), "success").await;
+    }
     result
 }
 
-// Release escrow to seller
+// Refactor release_escrow to be async
 #[update]
-fn release_escrow(delivery_id: String) -> Result<(), String> {
+async fn release_escrow(delivery_id: String) -> Result<(), String> {
     let caller = ic_cdk::caller();
     let current_time = get_current_time();
-    
+    let mut notify_seller = None;
+    let mut result = Err("Delivery not found".to_string());
     DELIVERIES.with(|d| {
         let mut deliveries = d.borrow_mut();
         if let Some(delivery) = deliveries.get_mut(&delivery_id) {
             if delivery.seller != caller {
-                return Err("Only seller can release escrow".to_string());
+                result = Err("Only seller can release escrow".to_string());
+                return;
             }
-            
             if delivery.status != DeliveryStatus::Confirmed {
-                return Err("Delivery must be confirmed to release escrow".to_string());
+                result = Err("Delivery must be confirmed to release escrow".to_string());
+                return;
             }
-            
             // Release escrow
             delivery.status = DeliveryStatus::EscrowReleased;
             delivery.escrow_released_at = Some(current_time);
             delivery.status_history.push((DeliveryStatus::EscrowReleased, current_time));
-            
             // Update escrow balance
             ESCROW_BALANCE.with(|e| {
                 *e.borrow_mut() -= delivery.amount;
             });
-            
             ic_cdk::println!("Escrow released for delivery: {}", delivery_id);
-            add_notification(delivery.seller, &format!("Escrow released for delivery {}!", delivery_id), "success");
-            Ok(())
-        } else {
-            Err("Delivery not found".to_string())
+            notify_seller = Some(delivery.seller);
+            result = Ok(());
         }
-    })
+    });
+    if let Some(seller) = notify_seller {
+        add_notification(seller, &format!("Escrow released for delivery {}!", delivery_id), "success").await;
+    }
+    result
 }
 
 // Mint NFT for confirmed delivery
@@ -352,14 +374,15 @@ async fn mint_delivery_nft(delivery_id: &str) -> String {
     DELIVERY_NFTS.with(|n| {
         n.borrow_mut().insert(nft_id.clone(), nft);
     });
-    add_notification(delivery.buyer, &format!("NFT minted for delivery {}!", delivery.id), "success");
+    add_notification(delivery.buyer, &format!("NFT minted for delivery {}!", delivery.id), "success").await;
     nft_id
 }
 
 // Add a notification for a specific user
-fn add_notification(principal: Principal, message: &str, notif_type: &str) {
+async fn add_notification(principal: Principal, message: &str, notif_type: &str) {
+    let id = generate_notification_id().await;
     let notification = Notification {
-        id: uuid::Uuid::new_v4().to_string(),
+        id,
         principal,
         message: message.to_string(),
         notif_type: notif_type.to_string(),
