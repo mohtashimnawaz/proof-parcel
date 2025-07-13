@@ -10,6 +10,7 @@ import DeliveryDetails from './components/DeliveryDetails.vue'
 import ConfirmDelivery from './components/ConfirmDelivery.vue'
 import MyDeliveries from './components/MyDeliveries.vue'
 import MyNFTs from './components/MyNFTs.vue'
+import Profile from './components/Profile.vue'
 
 // Create router
 const router = createRouter({
@@ -21,6 +22,7 @@ const router = createRouter({
     { path: '/confirm/:id', component: ConfirmDelivery },
     { path: '/my-deliveries', component: MyDeliveries },
     { path: '/my-nfts', component: MyNFTs },
+    { path: '/profile', component: Profile },
   ]
 })
 

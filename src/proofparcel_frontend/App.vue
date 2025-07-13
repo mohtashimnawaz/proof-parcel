@@ -46,6 +46,14 @@
             >
               My NFTs
             </router-link>
+            <router-link
+              v-if="plugConnected"
+              to="/profile"
+              class="text-gray-600 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              active-class="text-primary-600 dark:text-primary-400"
+            >
+              Profile
+            </router-link>
             <!-- Dark mode toggle button -->
             <button @click="toggleDarkMode" class="ml-4 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
               <span v-if="isDark" class="text-yellow-400">☀️</span>
