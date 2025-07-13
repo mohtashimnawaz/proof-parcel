@@ -197,6 +197,7 @@ fn start_delivery(delivery_id: String) -> Result<(), String> {
             delivery.status = DeliveryStatus::InTransit;
             delivery.in_transit_at = Some(get_current_time());
             delivery.status_history.push((DeliveryStatus::InTransit, get_current_time()));
+            add_notification(delivery.buyer, &format!("Your delivery {} is now in transit!", delivery.id), "info");
             Ok(())
         } else {
             Err("Delivery not found".to_string())
@@ -227,6 +228,7 @@ async fn generate_delivery_otp(delivery_id: String) -> Result<String, String> {
             delivery.status = DeliveryStatus::Delivered;
             delivery.delivered_at = Some(get_current_time());
             delivery.status_history.push((DeliveryStatus::Delivered, get_current_time()));
+            add_notification(delivery.buyer, &format!("Your delivery {} is now delivered! OTP generated.", delivery.id), "info");
             ic_cdk::println!("OTP generated for delivery {}: {}", delivery_id, otp);
             result = Ok(otp.clone());
         }
@@ -270,6 +272,8 @@ async fn confirm_delivery(request: ConfirmDeliveryRequest) -> Result<String, Str
             delivery.status = DeliveryStatus::Confirmed;
             delivery.confirmed_at = Some(current_time);
             delivery.status_history.push((DeliveryStatus::Confirmed, current_time));
+            add_notification(delivery.seller, &format!("Delivery {} has been confirmed by the buyer!", request.delivery_id), "success");
+            add_notification(delivery.buyer, &format!("You have confirmed delivery {}!", request.delivery_id), "success");
             result = Ok(String::new()); // placeholder, will set below
         }
     });
@@ -311,6 +315,7 @@ fn release_escrow(delivery_id: String) -> Result<(), String> {
             });
             
             ic_cdk::println!("Escrow released for delivery: {}", delivery_id);
+            add_notification(delivery.seller, &format!("Escrow released for delivery {}!", delivery_id), "success");
             Ok(())
         } else {
             Err("Delivery not found".to_string())
@@ -347,6 +352,7 @@ async fn mint_delivery_nft(delivery_id: &str) -> String {
     DELIVERY_NFTS.with(|n| {
         n.borrow_mut().insert(nft_id.clone(), nft);
     });
+    add_notification(delivery.buyer, &format!("NFT minted for delivery {}!", delivery.id), "success");
     nft_id
 }
 

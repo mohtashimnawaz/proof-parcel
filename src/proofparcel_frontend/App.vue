@@ -111,7 +111,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, provide } from 'vue'
+import { onMounted, ref, computed, provide, watch } from 'vue'
+import { Principal } from '@dfinity/principal'
 
 const isDark = ref(false)
 
@@ -151,6 +152,30 @@ const plugPrincipalShort = computed(() => {
   return plugPrincipal.value.slice(0, 8) + '...' + plugPrincipal.value.slice(-4)
 })
 
+async function fetchBackendNotifications() {
+  if (!plugPrincipal.value) return
+  // @ts-ignore
+  const agent = window.ic?.plug?.agent
+  if (!agent) return
+  const backendCanisterId = import.meta.env.VITE_BACKEND_CANISTER_ID || '<CANISTER_ID>'
+  const backend = await window.ic.plug.createActor({ canisterId: backendCanisterId, interfaceFactory: undefined })
+  const backendNotifs = await backend.get_notifications(Principal.fromText(plugPrincipal.value))
+  // Merge backend notifications (avoid duplicates by id)
+  backendNotifs.forEach((n: any) => {
+    if (!notifications.value.some(local => local.id === n.id)) {
+      notifications.value.unshift({
+        id: n.id,
+        message: n.message,
+        type: n.notif_type,
+        time: n.timestamp * 1000 // backend is seconds, JS is ms
+      })
+    }
+  })
+  // Keep only the latest 20
+  notifications.value = notifications.value.slice(0, 20)
+}
+watch(plugPrincipal, fetchBackendNotifications)
+
 async function connectPlug() {
   if (!(window as any).ic?.plug) {
     alert('Plug wallet extension not found! Please install Plug to connect.')
@@ -182,11 +207,11 @@ function checkPlugConnection() {
   }
 }
 
-const notifications = ref<Array<{ message: string, type: string, time: number }>>([])
+const notifications = ref<Array<{ id: string, message: string, type: string, time: number }>>([])
 const showNotifications = ref(false)
 function addNotification(message: string, type: string = 'info') {
-  notifications.value.unshift({ message, type, time: Date.now() })
-  if (notifications.value.length > 10) notifications.value.pop()
+  notifications.value.unshift({ id: Math.random().toString(36).slice(2), message, type, time: Date.now() })
+  if (notifications.value.length > 20) notifications.value.pop()
 }
 provide('addNotification', addNotification)
 </script>

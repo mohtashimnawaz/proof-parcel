@@ -11,23 +11,23 @@ export default defineConfig(({ mode }) => {
         "@": resolve(__dirname, "src"),
       },
     },
-    build: {
+  build: {
       outDir: "dist",
       rollupOptions: {
         input: {
           main: resolve(__dirname, "index.html"),
-        },
       },
     },
-    server: {
+  },
+  server: {
       port: 3000,
-      proxy: {
-        "/api": {
+    proxy: {
+      "/api": {
           target: "http://localhost:4943",
-          changeOrigin: true,
-        },
+        changeOrigin: true,
       },
     },
+  },
   };
 
   if (mode === "development") {
