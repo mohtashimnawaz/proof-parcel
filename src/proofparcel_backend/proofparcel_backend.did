@@ -15,10 +15,13 @@ type Delivery = record {
   description : text;
   status : DeliveryStatus;
   created_at : nat64;
-  otp : opt text;
-  otp_expires_at : opt nat64;
+  in_transit_at : opt nat64;
+  delivered_at : opt nat64;
   confirmed_at : opt nat64;
   escrow_released_at : opt nat64;
+  cancelled_at : opt nat64;
+  otp : opt text;
+  otp_expires_at : opt nat64;
 };
 
 type CreateDeliveryRequest = record {
