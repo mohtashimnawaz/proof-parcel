@@ -1,3 +1,57 @@
+type DeliveryStatus = variant {
+  Pending;
+  InTransit;
+  Delivered;
+  Confirmed;
+  EscrowReleased;
+  Cancelled;
+};
+
+type Delivery = record {
+  id : text;
+  seller : principal;
+  buyer : principal;
+  amount : nat64;
+  description : text;
+  status : DeliveryStatus;
+  created_at : nat64;
+  otp : opt text;
+  otp_expires_at : opt nat64;
+  confirmed_at : opt nat64;
+  escrow_released_at : opt nat64;
+};
+
+type CreateDeliveryRequest = record {
+  buyer : principal;
+  amount : nat64;
+  description : text;
+};
+
+type ConfirmDeliveryRequest = record {
+  delivery_id : text;
+  otp : text;
+};
+
+type DeliveryNFT = record {
+  id : text;
+  delivery_id : text;
+  owner : principal;
+  metadata : text;
+  minted_at : nat64;
+};
+
 service : {
-    "greet": (text) -> (text) query;
-}
+  "create_delivery" : (CreateDeliveryRequest) -> (variant { Ok : text; Err : text });
+  "start_delivery" : (text) -> (variant { Ok; Err : text });
+  "generate_delivery_otp" : (text) -> (variant { Ok : text; Err : text });
+  "confirm_delivery" : (ConfirmDeliveryRequest) -> (variant { Ok : text; Err : text });
+  "release_escrow" : (text) -> (variant { Ok; Err : text });
+  "get_delivery" : (text) -> (opt Delivery) query;
+  "get_deliveries_by_seller" : (principal) -> (vec Delivery) query;
+  "get_deliveries_by_buyer" : (principal) -> (vec Delivery) query;
+  "get_delivery_nft" : (text) -> (opt DeliveryNFT) query;
+  "get_nfts_by_owner" : (principal) -> (vec DeliveryNFT) query;
+  "get_escrow_balance" : () -> (nat64) query;
+  "get_all_deliveries" : () -> (vec Delivery) query;
+  "health_check" : () -> (text) query;
+};

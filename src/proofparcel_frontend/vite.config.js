@@ -1,43 +1,40 @@
-import { defineConfig } from 'vite';
-import { fileURLToPath, URL } from 'url';
-import environment from 'vite-plugin-environment';
-import dotenv from 'dotenv';
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { resolve } from "path";
 
-dotenv.config({ path: '../../.env' });
-
-export default defineConfig({
-  build: {
-    emptyOutDir: true,
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: "globalThis",
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  const config = {
+    plugins: [vue()],
+    resolve: {
+      alias: {
+        "@": resolve(__dirname, "src"),
       },
     },
-  },
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:4943",
-        changeOrigin: true,
+    build: {
+      outDir: "dist",
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, "index.html"),
+        },
       },
     },
-  },
-  publicDir: "assets",
-  plugins: [
-    environment("all", { prefix: "CANISTER_" }),
-    environment("all", { prefix: "DFX_" }),
-  ],
-  resolve: {
-    alias: [
-      {
-        find: "declarations",
-        replacement: fileURLToPath(
-          new URL("../declarations", import.meta.url)
-        ),
+    server: {
+      port: 3000,
+      proxy: {
+        "/api": {
+          target: "http://localhost:4943",
+          changeOrigin: true,
+        },
       },
-    ],
-    dedupe: ['@dfinity/agent'],
-  },
+    },
+  };
+
+  if (mode === "development") {
+    config.define = {
+      global: "globalThis",
+    };
+  }
+
+  return config;
 });

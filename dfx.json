@@ -13,7 +13,7 @@
         "src/proofparcel_frontend/dist"
       ],
       "type": "assets",
-      "workspace": "proofparcel_frontend"
+      "build": "cd src/proofparcel_frontend && npx tsc && npx vite build"
     }
   },
   "defaults": {
