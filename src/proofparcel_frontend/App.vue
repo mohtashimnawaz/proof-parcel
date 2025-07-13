@@ -69,6 +69,23 @@
                 <button @click="disconnectPlug" class="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600">Disconnect</button>
               </div>
             </div>
+            <!-- Notifications -->
+            <div class="relative ml-4">
+              <button @click="showNotifications = !showNotifications" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" aria-label="Notifications">
+                <svg class="h-5 w-5 text-gray-700 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                <span v-if="notifications.length" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">{{ notifications.length }}</span>
+              </button>
+              <div v-if="showNotifications" class="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
+                <div v-if="notifications.length === 0" class="p-4 text-gray-500 text-sm">No notifications</div>
+                <ul v-else class="max-h-64 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  <li v-for="(n, i) in notifications" :key="i" class="p-3 text-sm flex items-start">
+                    <span :class="[n.type === 'success' ? 'text-green-600' : n.type === 'error' ? 'text-red-600' : 'text-gray-700']">●</span>
+                    <span class="ml-2 flex-1">{{ n.message }}</span>
+                    <span class="ml-2 text-xs text-gray-400">{{ new Date(n.time).toLocaleTimeString() }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -94,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, provide } from 'vue'
 
 const isDark = ref(false)
 
@@ -164,6 +181,14 @@ function checkPlugConnection() {
     })
   }
 }
+
+const notifications = ref<Array<{ message: string, type: string, time: number }>>([])
+const showNotifications = ref(false)
+function addNotification(message: string, type: string = 'info') {
+  notifications.value.unshift({ message, type, time: Date.now() })
+  if (notifications.value.length > 10) notifications.value.pop()
+}
+provide('addNotification', addNotification)
 </script>
 
 <style scoped>

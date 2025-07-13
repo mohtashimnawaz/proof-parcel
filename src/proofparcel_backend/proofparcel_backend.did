@@ -44,6 +44,15 @@ type DeliveryNFT = record {
   minted_at : nat64;
 };
 
+type Notification = record {
+  id : text;
+  principal : principal;
+  message : text;
+  notif_type : text;
+  timestamp : nat64;
+  read : bool;
+};
+
 service : {
   "create_delivery" : (CreateDeliveryRequest) -> (variant { Ok : text; Err : text });
   "start_delivery" : (text) -> (variant { Ok; Err : text });
@@ -58,4 +67,5 @@ service : {
   "get_escrow_balance" : () -> (nat64) query;
   "get_all_deliveries" : () -> (vec Delivery) query;
   "health_check" : () -> (text) query;
+  "get_notifications" : (principal) -> (vec Notification) query;
 };

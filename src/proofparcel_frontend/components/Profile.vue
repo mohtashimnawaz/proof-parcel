@@ -103,7 +103,7 @@ declare global {
     ic?: any;
   }
 }
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, inject } from 'vue'
 import { Principal } from '@dfinity/principal'
 import DeliveryTimeline from './DeliveryTimeline.vue'
 
@@ -122,9 +122,12 @@ const avatarUrl = computed(() =>
   `https://api.dicebear.com/7.x/identicon/svg?seed=${props.principal}`
 )
 
+const addNotification = inject('addNotification') as (msg: string, type?: string) => void
+
 function showToast(message: string, type: 'success' | 'error' = 'success') {
   toast.value = { show: true, message, type }
   setTimeout(() => { toast.value.show = false }, 3000)
+  if (addNotification) addNotification(message, type)
 }
 
 async function fetchProfileData() {

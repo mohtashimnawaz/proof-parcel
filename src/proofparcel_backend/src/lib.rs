@@ -59,11 +59,22 @@ pub struct DeliveryNFT {
     pub minted_at: u64,
 }
 
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct Notification {
+    pub id: String,
+    pub principal: Principal,
+    pub message: String,
+    pub notif_type: String,
+    pub timestamp: u64,
+    pub read: bool,
+}
+
 // State management
 thread_local! {
     static DELIVERIES: RefCell<HashMap<String, Delivery>> = RefCell::new(HashMap::new());
     static DELIVERY_NFTS: RefCell<HashMap<String, DeliveryNFT>> = RefCell::new(HashMap::new());
     static ESCROW_BALANCE: RefCell<u64> = RefCell::new(0);
+    static NOTIFICATIONS: RefCell<HashMap<Principal, Vec<Notification>>> = RefCell::new(HashMap::new());
 }
 
 // Initialize the canister
@@ -339,6 +350,22 @@ async fn mint_delivery_nft(delivery_id: &str) -> String {
     nft_id
 }
 
+// Add a notification for a specific user
+fn add_notification(principal: Principal, message: &str, notif_type: &str) {
+    let notification = Notification {
+        id: uuid::Uuid::new_v4().to_string(),
+        principal,
+        message: message.to_string(),
+        notif_type: notif_type.to_string(),
+        timestamp: get_current_time(),
+        read: false,
+    };
+    NOTIFICATIONS.with(|n| {
+        let mut map = n.borrow_mut();
+        map.entry(principal).or_default().push(notification);
+    });
+}
+
 // Query functions
 #[query]
 fn get_delivery(delivery_id: String) -> Option<Delivery> {
@@ -397,6 +424,11 @@ fn get_all_deliveries() -> Vec<Delivery> {
     DELIVERIES.with(|d| {
         d.borrow().values().cloned().collect()
     })
+}
+
+#[query]
+fn get_notifications(principal: Principal) -> Vec<Notification> {
+    NOTIFICATIONS.with(|n| n.borrow().get(&principal).cloned().unwrap_or_default())
 }
 
 // Health check
