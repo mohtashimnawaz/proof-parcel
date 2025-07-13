@@ -39,6 +39,7 @@
                 </button>
               </div>
             </div>
+            <DeliveryTimeline :status="d.status" :createdAt="d.created_at" :confirmedAt="d.confirmed_at" :escrowReleasedAt="d.escrow_released_at" />
           </li>
         </ul>
       </div>
@@ -67,6 +68,7 @@
                 </button>
               </div>
             </div>
+            <DeliveryTimeline :status="d.status" :createdAt="d.created_at" :confirmedAt="d.confirmed_at" :escrowReleasedAt="d.escrow_released_at" />
           </li>
         </ul>
       </div>
@@ -103,6 +105,7 @@ declare global {
 }
 import { ref, onMounted, watch, computed } from 'vue'
 import { Principal } from '@dfinity/principal'
+import DeliveryTimeline from './DeliveryTimeline.vue'
 
 const props = defineProps<{ principal: string }>()
 const deliveriesAsBuyer = ref<any[]>([])
